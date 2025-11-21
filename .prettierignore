@@ -1,0 +1,7 @@
+# Ignore artifacts:
+.DS_Store
+node_modules
+coverage
+build
+.next
+out
