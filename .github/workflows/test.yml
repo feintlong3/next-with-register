@@ -24,6 +24,7 @@ jobs:
         with:
           path: |
             ~/.bun/install/cache
+            node_modules
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
@@ -37,7 +38,7 @@ jobs:
       - name: Lint code
         run: bun run lint
 
-      - name: Run tests
+      - name: Format code
         run: bun run format
 
       - name: Build app
