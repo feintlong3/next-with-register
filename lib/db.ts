@@ -1,29 +1,54 @@
 import Dexie, { type Table } from 'dexie'
 
-import { type RegisterFormValues } from '@/lib/schema/register-schema'
+import { type RegisterSchema } from '@/lib/schema/register-schema'
 
 // DBに保存するデータ型定義
-export type RegisterDraft = RegisterFormValues & {
-  id: string // 固定のID（例: 'current_draft'）を使って「1ユーザー1ドラフト」を管理する場合
+export type RegisterDraft = RegisterSchema & {
+  id: string
+  sessionId: string
   updatedAt: Date
 }
 
 class RegisterDatabase extends Dexie {
-  // テーブル定義（ジェネリクスで型安全にする）
   registerData!: Table<RegisterDraft, string>
 
   constructor() {
     super('SmartRegisterDB')
 
-    // スキーマ定義
     this.version(1).stores({
-      registerData: 'id, documentType, updatedAt',
+      registerData: 'id, sessionId, updatedAt',
     })
   }
 }
 
-// シングルトンインスタンスの作成
-// Next.jsなどのSSR環境でのエラーを防ぐため、globalスコープ等を利用するか、
-// あるいは単純にモジュールレベルで生成してもDexieはブラウザ環境チェックをしてくれますが、
-// 明示的にクライアントサイドでのみ利用することを意識します。
-export const db = new RegisterDatabase()
+let dbInstance: RegisterDatabase | null = null
+
+export const getDb = (): RegisterDatabase => {
+  if (!dbInstance) {
+    dbInstance = new RegisterDatabase()
+  }
+  return dbInstance
+}
+
+export const initializeDb = async () => {
+  const db = getDb()
+  await db.open()
+}
+
+export const deleteDb = async () => {
+  try {
+    // インスタンスがあれば閉じる
+    if (dbInstance) {
+      if (dbInstance.isOpen()) {
+        dbInstance.close()
+      }
+      await dbInstance.delete().then(() => {
+        console.log('Database deleted successfully')
+        dbInstance = null
+      })
+    }
+  } catch (error) {
+    console.error('Failed to delete database:', error)
+    throw error
+  }
+}

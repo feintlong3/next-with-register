@@ -1,11 +1,19 @@
 import { z } from 'zod'
 
-// 1. 再利用可能なファイル検証スキーマ（ここだけでロジックを完結させる）
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
+/**
+ * 画像ファイル検証用の再利用可能なスキーマ
+ * - Fileオブジェクトであること
+ * - サイズが5MB以下であること
+ * - 形式が jpeg, png, webp であること
+ */
 const imageFileSchema = z
-  .custom<File>((val) => val instanceof File, 'ファイルをアップロードしてください')
+  .custom<File>(
+    (val) => typeof window !== 'undefined' && val instanceof File,
+    '画像をアップロードしてください'
+  )
   .refine((file) => file.size <= MAX_FILE_SIZE, {
     message: 'ファイルサイズは5MB以下にしてください',
   })
@@ -13,56 +21,71 @@ const imageFileSchema = z
     message: '.jpg, .png, .webp 形式のみ対応しています',
   })
 
-// 2. 書類ごとの固有フィールド定義
-// 運転免許証用スキーマ
-const driversLicenseSchema = z.object({
-  documentType: z.literal('drivers_license'), // 判別用のリテラル型
-  licenseNumber: z.string().regex(/^\d{12}$/, '免許証番号は12桁の半角数字で入力してください'),
-  frontImage: imageFileSchema,
-  backImage: imageFileSchema, // 免許証は裏面も必須とする
+// ==========================================
+// Step 1: 基本情報 (Personal Info)
+// ==========================================
+export const personalInfoSchema = z.object({
+  fullName: z.string().min(1, '氏名を入力してください'),
+  email: z.email('正しいメールアドレス形式で入力してください'),
+  phoneNumber: z.string().regex(/^0\d{9,10}$/, 'ハイフンなしの正しい電話番号を入力してください'),
+  address: z.string().min(1, '住所を入力してください'),
 })
 
-// パスポート用スキーマ
+// ==========================================
+// Step 2: 書類選択 (Documents)
+// ==========================================
+
+// 1. 運転免許証
+const driversLicenseSchema = z.object({
+  documentType: z.literal('drivers_license'),
+  licenseNumber: z.string().regex(/^\d{12}$/, '免許証番号は12桁の半角数字で入力してください'),
+  frontImage: imageFileSchema,
+  backImage: imageFileSchema, // 免許証は裏面必須
+})
+
+// 2. パスポート
 const passportSchema = z.object({
   documentType: z.literal('passport'),
   passportNumber: z
     .string()
     .regex(/^[A-Z]{2}\d{7}$/, '旅券番号の形式が正しくありません（例: TK1234567）'),
   frontImage: imageFileSchema,
-  // パスポートは裏面画像は不要（undefinedを許容、またはフィールド自体なし）
+  // パスポートは裏面不要（フィールド自体が存在しないか、あっても検証しない）
 })
 
-// マイナンバーカード用スキーマ
+// 3. マイナンバーカード
 const myNumberSchema = z.object({
   documentType: z.literal('my_number'),
-
-  // 個人番号（12桁）
   myNumber: z.string().regex(/^\d{12}$/, 'マイナンバーは12桁の半角数字で入力してください'),
-
-  // セキュリティコード（署名用電子証明書暗証番号など。今回は4桁の例）
-  securityCode: z
-    .string()
-    .regex(/^\d{4}$/, 'セキュリティコードは4桁の半角数字です')
-    .optional(), // 任意項目にする場合
-
-  // 有効期限（カード表面の印字）
   expirationDate: z.coerce.date().refine((date) => date > new Date(), {
     message: '有効期限が切れているカードは使用できません',
   }),
-
   frontImage: imageFileSchema,
-  // マイナンバーカードは裏面（個人番号記載面）のアップロードには法的制約がある場合がありますが、
-  // 今回はポートフォリオとして「機能実装」を見せるため必須とします。
-  backImage: imageFileSchema,
+  backImage: imageFileSchema, // マイナンバーは裏面必須
 })
 
-// 3. 統合スキーマ（discriminatedUnionで分岐）
-// これにより、documentTypeの値に応じて自動的に型が切り替わります
-export const registerFormSchema = z.discriminatedUnion('documentType', [
+// 書類スキーマの統合 (Discriminated Union)
+// documentType の値によって自動的にバリデーションルールが切り替わります
+export const documentSchema = z.discriminatedUnion('documentType', [
   driversLicenseSchema,
   passportSchema,
   myNumberSchema,
 ])
 
-// TypeScriptの型を抽出
-export type RegisterFormValues = z.infer<typeof registerFormSchema>
+// ==========================================
+// 統合スキーマ (アプリ全体)
+// ==========================================
+// Step 1 と Step 2 を結合したもの。
+// DB保存時の型定義や、確認画面での型定義として使用します。
+export const registerSchema = z.intersection(personalInfoSchema, documentSchema)
+
+// --- 型定義のエクスポート ---
+
+// Step 1 用
+export type PersonalInfoSchema = z.infer<typeof personalInfoSchema>
+
+// Step 2 用
+export type DocumentSchema = z.infer<typeof documentSchema>
+
+// 全体統合型 (DB保存用など)
+export type RegisterSchema = z.infer<typeof registerSchema>
