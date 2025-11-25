@@ -10,21 +10,16 @@ export default defineConfig({
     'process.env': {},
   },
   optimizeDeps: {
-    force: true,
     include: ['./app/**/*.tsx'],
   },
   test: {
     include: ['**/*.browser.test.tsx'],
     setupFiles: './vitest.browser.setup.ts',
     browser: {
-      headless: false,
+      headless: true,
       enabled: true,
       screenshotFailures: false,
-      provider: playwright({
-        launchOptions: {
-          slowMo: 5000,
-        },
-      }),
+      provider: playwright(),
       instances: [{ browser: 'chromium' }],
     },
   },
