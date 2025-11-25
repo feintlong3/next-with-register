@@ -116,7 +116,7 @@ export default function LandingPage() {
                   </span>
                 ) : hasDraft ? (
                   <span className='text-slate-600 font-medium text-sm'>
-                    最終更新: {draft!.updatedAt && formatUpdateDate(draft!.updatedAt)}
+                    最終更新: {formatUpdateDate(draft!.updatedAt)}
                   </span>
                 ) : (
                   '保存されたデータはありません'

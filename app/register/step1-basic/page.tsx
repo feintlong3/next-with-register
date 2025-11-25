@@ -16,10 +16,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import Input from '@/components/ui/input'
 import { getDb, initializeDb } from '@/lib/db'
 import { DRAFT_ID, useRegisterDraft } from '@/lib/hooks/useRegisterDraft'
 import { type PersonalInfoSchema, personalInfoSchema } from '@/lib/schema/register-schema'
+import { encryptRegisterData } from '@/lib/utils/encryption-helper'
 
 export default function Step1BasicPage() {
   const router = useRouter()
@@ -64,12 +65,19 @@ export default function Step1BasicPage() {
     try {
       // IndexedDBへ保存（マージ保存）
       // 既存の draft データがあればそれを展開し、今回の data で上書きする
+      const mergedData = {
+        ...draft, // 既存データ（Step2の書類データなどがあれば維持）
+        ...data, // 今回の入力データ（氏名など）
+      }
+
+      // 暗号化してから保存
+      const encryptedData = await encryptRegisterData(mergedData)
+
       const db = getDb()
       await db.registerData.put({
         id: DRAFT_ID,
         sessionId: sessionId, // ★重要: 現在のセッションキーを埋め込む
-        ...draft, // 既存データ（Step2の書類データなどがあれば維持）
-        ...data, // 今回の入力データ（氏名など）
+        ...encryptedData,
         updatedAt: new Date(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
