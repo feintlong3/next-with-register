@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, CreditCard, Loader2, Upload, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { type Resolver, useForm, type UseFormReturn } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
@@ -35,9 +35,7 @@ import { sanitizeRegisterData } from '@/lib/utils/sanitize-register'
 export default function Step2DocumentsPage() {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
-  const [isUpdatingDB, setIsUpdatingDB] = useState(false)
   const [imageKeys, setImageKeys] = useState({ frontImage: 0, backImage: 0 })
-  const isDeletingImageRef = useRef(false)
   const { draft, sessionId, isLoading } = useRegisterDraft()
 
   const form = useForm<DocumentSchema>({
@@ -56,8 +54,7 @@ export default function Step2DocumentsPage() {
 
   // DBからデータを復元
   useEffect(() => {
-    // DB更新中または画像削除中は draft の変更を無視（UIの上書きを防ぐ）
-    if (draft && !isUpdatingDB && !isDeletingImageRef.current) {
+    if (draft) {
       // draftデータとdefaultValuesをマージして、undefinedのフィールドを防ぐ
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const draftAny = draft as any
@@ -74,9 +71,10 @@ export default function Step2DocumentsPage() {
       }
       form.reset(safeData as DocumentSchema)
     }
-  }, [draft, form, isUpdatingDB])
+  }, [draft, form])
 
   // 書類タイプの監視（条件分岐表示用）
+  // eslint-disable-next-line react-hooks/incompatible-library
   const watched = form.watch('documentType')
   const documentType = watched ?? form.getValues('documentType') ?? 'drivers_license'
 
@@ -106,33 +104,27 @@ export default function Step2DocumentsPage() {
     if (!sessionId) return
     setIsSaving(true)
 
-    try {
-      // 1. 既存データと今回の入力をマージ (まだゴミが含まれる可能性がある)
-      const dirtyMergedData = {
-        ...draft,
-        ...data,
-      }
-
-      // 2. 不要なフィールド（例: 免許証を選んだのに残っているパスポート番号など）を除去
-      const cleanData = sanitizeRegisterData(dirtyMergedData)
-
-      const encryptedData = await encryptRegisterData(cleanData)
-
-      // 3. 保存
-      const db = getDb()
-      await db.registerData.put({
-        id: DRAFT_ID,
-        sessionId,
-        ...encryptedData,
-        updatedAt: new Date(),
-      } as RegisterDraft)
-
-      router.push('/register/step3-confirm')
-    } catch (error) {
-      console.error('Failed to save:', error)
-    } finally {
-      setIsSaving(false)
+    // 1. 既存データと今回の入力をマージ (まだゴミが含まれる可能性がある)
+    const dirtyMergedData = {
+      ...draft,
+      ...data,
     }
+
+    // 2. 不要なフィールド（例: 免許証を選んだのに残っているパスポート番号など）を除去
+    const cleanData = sanitizeRegisterData(dirtyMergedData)
+
+    await encryptRegisterData(cleanData)
+      .then((encryptedData) =>
+        getDb().registerData.put({
+          id: DRAFT_ID,
+          sessionId,
+          ...encryptedData,
+          updatedAt: new Date(),
+        } as RegisterDraft)
+      )
+      .then(() => router.push('/register/step3-confirm'))
+      .catch((error) => console.error('Failed to save:', error))
+      .finally(() => setIsSaving(false))
   }
 
   const onBack = () => {
@@ -193,37 +185,32 @@ export default function Step2DocumentsPage() {
 
                       // DBも更新して、画像削除を永続化（非同期で実行）
                       if (sessionId && draft) {
-                        setIsUpdatingDB(true)
-
                         const persistDocumentTypeChange = async (
                           newDocType: DocumentSchema['documentType']
                         ) => {
-                          setIsUpdatingDB(true)
-                          try {
-                            const currentValues = form.getValues()
-                            const updatedData = {
-                              ...draft,
-                              ...currentValues,
-                              documentType: newDocType,
-                              frontImage: undefined,
-                              backImage: undefined,
-                            }
-                            const cleanData = sanitizeRegisterData(updatedData)
-                            const encryptedData = await encryptRegisterData(cleanData)
-
-                            const db = getDb()
-                            await db.registerData.put({
-                              id: DRAFT_ID,
-                              sessionId,
-                              ...encryptedData,
-                              updatedAt: new Date(),
-                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            } as any)
-                          } catch (error) {
-                            console.error('Failed to update DB after documentType change:', error)
-                          } finally {
-                            setIsUpdatingDB(false)
+                          const currentValues = form.getValues()
+                          const updatedData = {
+                            ...draft,
+                            ...currentValues,
+                            documentType: newDocType,
+                            frontImage: undefined,
+                            backImage: undefined,
                           }
+                          const cleanData = sanitizeRegisterData(updatedData)
+
+                          await encryptRegisterData(cleanData)
+                            .then((encryptedData) =>
+                              getDb().registerData.put({
+                                id: DRAFT_ID,
+                                sessionId,
+                                ...encryptedData,
+                                updatedAt: new Date(),
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              } as any)
+                            )
+                            .catch((error) =>
+                              console.error('Failed to update DB after documentType change:', error)
+                            )
                         }
                         void persistDocumentTypeChange(value as DocumentSchema['documentType'])
                       }
@@ -276,8 +263,6 @@ export default function Step2DocumentsPage() {
                     label='表面画像'
                     sessionId={sessionId}
                     draft={draft}
-                    setIsUpdatingDB={setIsUpdatingDB}
-                    isDeletingImageRef={isDeletingImageRef}
                     setImageKeys={setImageKeys}
                   />
                   <ImageUploadField
@@ -287,8 +272,6 @@ export default function Step2DocumentsPage() {
                     label='裏面画像'
                     sessionId={sessionId}
                     draft={draft}
-                    setIsUpdatingDB={setIsUpdatingDB}
-                    isDeletingImageRef={isDeletingImageRef}
                     setImageKeys={setImageKeys}
                   />
                 </div>
@@ -322,8 +305,6 @@ export default function Step2DocumentsPage() {
                     label='顔写真ページ'
                     sessionId={sessionId}
                     draft={draft}
-                    setIsUpdatingDB={setIsUpdatingDB}
-                    isDeletingImageRef={isDeletingImageRef}
                     setImageKeys={setImageKeys}
                   />
                 </div>
@@ -381,8 +362,6 @@ export default function Step2DocumentsPage() {
                     label='表面 (顔写真)'
                     sessionId={sessionId}
                     draft={draft}
-                    setIsUpdatingDB={setIsUpdatingDB}
-                    isDeletingImageRef={isDeletingImageRef}
                     setImageKeys={setImageKeys}
                   />
                   <ImageUploadField
@@ -392,8 +371,6 @@ export default function Step2DocumentsPage() {
                     label='裏面 (個人番号)'
                     sessionId={sessionId}
                     draft={draft}
-                    setIsUpdatingDB={setIsUpdatingDB}
-                    isDeletingImageRef={isDeletingImageRef}
                     setImageKeys={setImageKeys}
                   />
                 </div>
@@ -432,8 +409,6 @@ function ImageUploadField({
   label,
   sessionId,
   draft,
-  setIsUpdatingDB,
-  isDeletingImageRef,
   setImageKeys,
 }: {
   form: UseFormReturn<DocumentSchema>
@@ -442,8 +417,6 @@ function ImageUploadField({
   sessionId: string | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   draft: any
-  setIsUpdatingDB: (value: boolean) => void
-  isDeletingImageRef: React.MutableRefObject<boolean>
   setImageKeys: React.Dispatch<React.SetStateAction<{ frontImage: number; backImage: number }>>
 }) {
   return (
@@ -503,50 +476,36 @@ function ImageUploadField({
                       onClick={async () => {
                         if (!sessionId || !draft) return
 
-                        try {
-                          // 削除中フラグを立てる（同期的に設定）
-                          isDeletingImageRef.current = true
-                          // DBアップデート中フラグも立てる
-                          setIsUpdatingDB(true)
+                        // keyを更新してコンポーネントを再マウント（UIを確実に更新）
+                        setImageKeys((prev) => ({ ...prev, [name]: prev[name] + 1 }))
 
-                          // keyを更新してコンポーネントを再マウント（UIを確実に更新）
-                          setImageKeys((prev) => ({ ...prev, [name]: prev[name] + 1 }))
+                        // DBを更新
+                        const currentValues = form.getValues()
+                        form.reset({
+                          ...currentValues,
+                          [name]: undefined,
+                        })
+                        const updatedData = {
+                          ...draft, // 既存のデータ（step1の情報など）を保持
+                          ...currentValues,
+                          [name]: undefined,
+                        }
+                        const cleanData = sanitizeRegisterData(updatedData)
 
-                          // DBを更新（await で完了を待つ）
-                          const currentValues = form.getValues()
-                          form.reset({
-                            ...currentValues,
-                            [name]: undefined,
-                          })
-                          const updatedData = {
-                            ...draft, // 既存のデータ（step1の情報など）を保持
-                            ...currentValues,
-                            [name]: undefined,
-                          }
-                          const cleanData = sanitizeRegisterData(updatedData)
-                          const encryptedData = await encryptRegisterData(cleanData)
-
-                          const db = getDb()
-                          await db.registerData
-                            .put({
+                        await encryptRegisterData(cleanData)
+                          .then((encryptedData) =>
+                            getDb().registerData.put({
                               id: DRAFT_ID,
                               sessionId,
                               ...encryptedData,
                               updatedAt: new Date(),
                               // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             } as any)
-                            .then(() => {
-                              console.log('Image deleted and DB updated successfully')
-                            })
-                        } catch (error) {
-                          console.error('Failed to update DB after image deletion:', error)
-                        } finally {
-                          setIsUpdatingDB(false)
-                          // 少し待ってから削除フラグを下ろす（useLiveQueryが新しいデータを返すまで）
-                          setTimeout(() => {
-                            isDeletingImageRef.current = false
-                          }, 100)
-                        }
+                          )
+                          .then(() => console.log('Image deleted and DB updated successfully'))
+                          .catch((error) =>
+                            console.error('Failed to update DB after image deletion:', error)
+                          )
                       }}
                     >
                       <X className='w-4 h-4' />

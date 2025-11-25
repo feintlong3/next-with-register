@@ -37,18 +37,18 @@ export const useRegisterDraft = () => {
     if (!sessionId || dbExists === null || !dbExists) return
 
     const checkAndCleanup = async () => {
-      try {
-        const db = getDb()
-        const data = await db.registerData.get(DRAFT_ID)
-
-        if (data && data.sessionId !== sessionId) {
-          console.warn('セッション不一致。データを破棄します。')
-          await db.registerData.delete(DRAFT_ID)
-          console.log('古いドラフトデータが削除されました。')
-        }
-      } catch (error) {
-        console.error('削除エラー:', error)
-      }
+      const db = getDb()
+      await db.registerData
+        .get(DRAFT_ID)
+        .then((data) => {
+          if (data && data.sessionId !== sessionId) {
+            console.warn('セッション不一致。データを破棄します。')
+            return db.registerData
+              .delete(DRAFT_ID)
+              .then(() => console.log('古いドラフトデータが削除されました。'))
+          }
+        })
+        .catch((error) => console.error('削除エラー:', error))
     }
 
     checkAndCleanup()

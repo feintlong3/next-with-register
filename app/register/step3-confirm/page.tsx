@@ -20,24 +20,22 @@ export default function Step3ConfirmPage() {
     if (!draft) return
     setIsSubmitting(true)
 
-    try {
-      // 1. 本来はここでバックエンドAPIへデータを送信
-      console.log('Submitting Data:', draft)
+    // 1. 本来はここでバックエンドAPIへデータを送信
+    console.log('Submitting Data:', draft)
 
-      // 擬似的な待機時間
-      await new Promise((resolve) => setTimeout(resolve, 800))
-
-      await deleteDb() // データベース全体を削除してクリーンアップ
-
-      // 3. 完了通知（本来はThankYouページへ遷移などが良い）
-      alert('申請を受け付けました！')
-      router.push('/')
-    } catch (error) {
-      console.error('Submission failed:', error)
-      alert('送信に失敗しました。')
-    } finally {
-      setIsSubmitting(false)
-    }
+    // 擬似的な待機時間
+    await new Promise((resolve) => setTimeout(resolve, 800))
+      .then(() => deleteDb()) // データベース全体を削除してクリーンアップ
+      .then(() => {
+        // 完了通知（本来はThankYouページへ遷移などが良い）
+        alert('申請を受け付けました！')
+        router.push('/')
+      })
+      .catch((error) => {
+        console.error('Submission failed:', error)
+        alert('送信に失敗しました。')
+      })
+      .finally(() => setIsSubmitting(false))
   }
 
   // ローディング中
