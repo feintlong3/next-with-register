@@ -2,7 +2,8 @@ import Dexie from 'dexie'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 
-import { getDb } from '@/lib/db'
+import { getDb, type RegisterDraft } from '@/lib/db'
+import { decryptRegisterData } from '@/lib/utils/encryption-helper'
 
 export const DRAFT_ID = 'draft_user_1'
 const SESSION_KEY_NAME = 'register_session_id'
@@ -54,7 +55,7 @@ export const useRegisterDraft = () => {
   }, [sessionId, dbExists])
 
   // useLiveQuery: DBが存在する場合のみ実行
-  const draft = useLiveQuery(async () => {
+  const draft = useLiveQuery(async (): Promise<RegisterDraft | null> => {
     if (!sessionId || dbExists === null || !dbExists) {
       return null
     }
@@ -67,7 +68,14 @@ export const useRegisterDraft = () => {
         return null
       }
 
-      return data
+      // 復号化してから返す（メタデータは保持）
+      const decryptedData = await decryptRegisterData(data)
+      return {
+        ...decryptedData,
+        id: data.id,
+        sessionId: data.sessionId,
+        updatedAt: data.updatedAt,
+      } as RegisterDraft
     } catch (error) {
       console.error('Draft取得エラー:', error)
       return null
