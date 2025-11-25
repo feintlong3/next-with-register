@@ -30,16 +30,14 @@ export default function LandingPage() {
 
   // 「新規登録」ボタンの処理
   const handleStartFresh = async () => {
-    try {
-      const db = getDb()
-      // 既存のデータを明示的に削除
-      await db.registerData.delete(DRAFT_ID)
-      router.push('/register/step1-basic')
-    } catch (error) {
-      console.error('Failed to delete draft:', error)
-      // エラーでも遷移はさせる
-      router.push('/register/step1-basic')
-    }
+    await getDb()
+      .registerData.delete(DRAFT_ID)
+      .then(() => router.push('/register/step1-basic'))
+      .catch((error) => {
+        console.error('Failed to delete draft:', error)
+        // エラーでも遷移はさせる
+        router.push('/register/step1-basic')
+      })
   }
 
   // 「続きから」ボタンの処理

@@ -62,34 +62,26 @@ export default function Step1BasicPage() {
 
     setIsSaving(true)
 
-    try {
-      // IndexedDBへ保存（マージ保存）
-      // 既存の draft データがあればそれを展開し、今回の data で上書きする
-      const mergedData = {
-        ...draft, // 既存データ（Step2の書類データなどがあれば維持）
-        ...data, // 今回の入力データ（氏名など）
-      }
-
-      // 暗号化してから保存
-      const encryptedData = await encryptRegisterData(mergedData)
-
-      const db = getDb()
-      await db.registerData.put({
-        id: DRAFT_ID,
-        sessionId: sessionId, // ★重要: 現在のセッションキーを埋め込む
-        ...encryptedData,
-        updatedAt: new Date(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)
-
-      // 次のステップへ
-      router.push('/register/step2-documents')
-    } catch (error) {
-      console.error('Failed to save draft:', error)
-      // エラーハンドリング（必要に応じてToastなどを表示）
-    } finally {
-      setIsSaving(false)
+    // IndexedDBへ保存（マージ保存）
+    // 既存の draft データがあればそれを展開し、今回の data で上書きする
+    const mergedData = {
+      ...draft, // 既存データ（Step2の書類データなどがあれば維持）
+      ...data, // 今回の入力データ（氏名など）
     }
+
+    await encryptRegisterData(mergedData)
+      .then((encryptedData) =>
+        getDb().registerData.put({
+          id: DRAFT_ID,
+          sessionId: sessionId, // ★重要: 現在のセッションキーを埋め込む
+          ...encryptedData,
+          updatedAt: new Date(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
+      )
+      .then(() => router.push('/register/step2-documents'))
+      .catch((error) => console.error('Failed to save draft:', error))
+      .finally(() => setIsSaving(false))
   }
 
   // ローディング中は何も表示しないか、スケルトンを表示
