@@ -8,5 +8,7 @@ export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   test: {
     environment: 'jsdom',
+    include: ['**/*/*.test.ts', '**/*/*.test.tsx'],
+    exclude: ['node_modules', '**/*.browser.test.tsx'],
   },
 })
