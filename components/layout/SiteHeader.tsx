@@ -1,4 +1,4 @@
-import { FileCheck, Home, X } from 'lucide-react'
+import { FileCheck, Home } from 'lucide-react'
 import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
