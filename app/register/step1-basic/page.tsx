@@ -2,8 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, Loader2, User } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
@@ -17,15 +16,13 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import Input from '@/components/ui/input'
-import { getDb, initializeDb } from '@/lib/db'
-import { DRAFT_ID, useRegisterDraft } from '@/lib/hooks/useRegisterDraft'
+import { initializeDb } from '@/lib/db'
+import { useFormDraftSync } from '@/lib/hooks/useFormDraftSync'
+import { useRegisterDraft } from '@/lib/hooks/useRegisterDraft'
+import { useRegisterFormSave } from '@/lib/hooks/useRegisterFormSave'
 import { type PersonalInfoSchema, personalInfoSchema } from '@/lib/schema/register-schema'
-import { encryptRegisterData } from '@/lib/utils/encryption-helper'
 
 export default function Step1BasicPage() {
-  const router = useRouter()
-  const [isSaving, setIsSaving] = useState(false)
-
   useEffect(() => {
     initializeDb()
   }, [])
@@ -46,43 +43,14 @@ export default function Step1BasicPage() {
   })
 
   // DBからデータがロードされたらフォームに反映
-  // (戻ってきた場合や、続きから再開した場合用)
-  useEffect(() => {
-    if (draft) {
-      // draftにはStep2以降のデータも含まれている可能性があるが、
-      // resetはフォーム定義にあるフィールドのみを更新してくれるため安全
-      form.reset(draft)
-    }
-  }, [draft, form])
+  useFormDraftSync(form, draft)
 
-  // 次へ進む処理
-  const onNext = async (data: PersonalInfoSchema) => {
-    // セッションIDがまだ生成されていない場合はガード（通常ありえないが型安全のため）
-    if (!sessionId) return
-
-    setIsSaving(true)
-
-    // IndexedDBへ保存（マージ保存）
-    // 既存の draft データがあればそれを展開し、今回の data で上書きする
-    const mergedData = {
-      ...draft, // 既存データ（Step2の書類データなどがあれば維持）
-      ...data, // 今回の入力データ（氏名など）
-    }
-
-    await encryptRegisterData(mergedData)
-      .then((encryptedData) =>
-        getDb().registerData.put({
-          id: DRAFT_ID,
-          sessionId: sessionId, // ★重要: 現在のセッションキーを埋め込む
-          ...encryptedData,
-          updatedAt: new Date(),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-      )
-      .then(() => router.push('/register/step2-documents'))
-      .catch((error) => console.error('Failed to save draft:', error))
-      .finally(() => setIsSaving(false))
-  }
+  // フォームデータの保存と画面遷移
+  const { isSaving, saveAndNavigate } = useRegisterFormSave<PersonalInfoSchema>({
+    nextRoute: '/register/step2-documents',
+    draft,
+    sessionId,
+  })
 
   // ローディング中は何も表示しないか、スケルトンを表示
   // (フック側で初期化が終わるのを待つ)
@@ -108,7 +76,7 @@ export default function Step1BasicPage() {
 
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onNext)} className='space-y-6'>
+          <form onSubmit={form.handleSubmit(saveAndNavigate)} className='space-y-6'>
             {/* 氏名 */}
             <FormField
               control={form.control}
