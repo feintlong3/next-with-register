@@ -40,5 +40,8 @@ jobs:
       - name: Format code
         run: bun run format
 
+      - name: Run tests
+        run: bun run test
+
       - name: Build app
         run: bun run build
