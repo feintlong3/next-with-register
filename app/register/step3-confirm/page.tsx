@@ -2,41 +2,25 @@
 
 import { AlertCircle, ArrowLeft, CheckCircle2, FileText, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { deleteDb } from '@/lib/db'
+import { useFormSubmit } from '@/lib/hooks/useFormSubmit'
 import { useRegisterDraft } from '@/lib/hooks/useRegisterDraft'
 
 export default function Step3ConfirmPage() {
   const router = useRouter()
   const { draft, isLoading } = useRegisterDraft()
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // 送信処理
-  const onSubmit = async () => {
-    if (!draft) return
-    setIsSubmitting(true)
+  // フォーム送信処理
+  const { isSubmitting, handleSubmit } = useFormSubmit({
+    onSuccess: () => router.push('/'),
+    successMessage: '申請を受け付けました！',
+    errorMessage: '送信に失敗しました。',
+  })
 
-    // 1. 本来はここでバックエンドAPIへデータを送信
-    console.log('Submitting Data:', draft)
-
-    // 擬似的な待機時間
-    await new Promise((resolve) => setTimeout(resolve, 800))
-      .then(() => deleteDb()) // データベース全体を削除してクリーンアップ
-      .then(() => {
-        // 完了通知（本来はThankYouページへ遷移などが良い）
-        alert('申請を受け付けました！')
-        router.push('/')
-      })
-      .catch((error) => {
-        console.error('Submission failed:', error)
-        alert('送信に失敗しました。')
-      })
-      .finally(() => setIsSubmitting(false))
-  }
+  const onSubmit = () => handleSubmit(draft)
 
   // ローディング中
   if (isLoading) {

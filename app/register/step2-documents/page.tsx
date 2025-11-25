@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, CreditCard, Loader2, Upload, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { type Resolver, useForm, type UseFormReturn } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
@@ -25,16 +25,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getDb } from '@/lib/db'
-import { type RegisterDraft } from '@/lib/db'
-import { DRAFT_ID, useRegisterDraft } from '@/lib/hooks/useRegisterDraft'
+import { useDocumentFormDraftSync } from '@/lib/hooks/useDocumentFormDraftSync'
+import { useDocumentTypeChange } from '@/lib/hooks/useDocumentTypeChange'
+import { useDocumentTypeFieldCleanup } from '@/lib/hooks/useDocumentTypeFieldCleanup'
+import { useImageDelete } from '@/lib/hooks/useImageDelete'
+import { useRegisterDraft } from '@/lib/hooks/useRegisterDraft'
+import { useRegisterFormSave } from '@/lib/hooks/useRegisterFormSave'
 import { type DocumentSchema, documentSchema } from '@/lib/schema/register-schema'
-import { encryptRegisterData } from '@/lib/utils/encryption-helper'
 import { sanitizeRegisterData } from '@/lib/utils/sanitize-register'
 
 export default function Step2DocumentsPage() {
   const router = useRouter()
-  const [isSaving, setIsSaving] = useState(false)
   const [imageKeys, setImageKeys] = useState({ frontImage: 0, backImage: 0 })
   const { draft, sessionId, isLoading } = useRegisterDraft()
 
@@ -52,80 +53,40 @@ export default function Step2DocumentsPage() {
     mode: 'onChange',
   })
 
-  // DBからデータを復元
-  useEffect(() => {
-    if (draft) {
-      // draftデータとdefaultValuesをマージして、undefinedのフィールドを防ぐ
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const draftAny = draft as any
-      const safeData = {
-        documentType: (draftAny.documentType ??
-          'drivers_license') as DocumentSchema['documentType'],
-        licenseNumber: draftAny.licenseNumber ?? '',
-        passportNumber: draftAny.passportNumber ?? '',
-        myNumber: draftAny.myNumber ?? '',
-        expirationDate: draftAny.expirationDate,
-        // 画像は有効なFileオブジェクトの場合のみ復元
-        frontImage: draftAny.frontImage instanceof File ? draftAny.frontImage : undefined,
-        backImage: draftAny.backImage instanceof File ? draftAny.backImage : undefined,
-      }
-      form.reset(safeData as DocumentSchema)
-    }
-  }, [draft, form])
+  // DBからデータを復元（書類フォーム専用）
+  useDocumentFormDraftSync(form, draft)
 
   // 書類タイプの監視（条件分岐表示用）
   // eslint-disable-next-line react-hooks/incompatible-library
   const watched = form.watch('documentType')
   const documentType = watched ?? form.getValues('documentType') ?? 'drivers_license'
 
-  // documentTypeが変更された時に、不要なフィールドを登録解除
-  useEffect(() => {
-    const currentDocType = form.getValues('documentType')
+  // 書類タイプに応じて不要なフィールドを登録解除
+  useDocumentTypeFieldCleanup(form, documentType)
 
-    // documentTypeに応じて、不要なフィールドを登録解除
-    if (currentDocType === 'drivers_license') {
-      // パスポートとマイナンバーのフィールドを登録解除
-      form.unregister('passportNumber')
-      form.unregister('myNumber')
-      form.unregister('expirationDate')
-    } else if (currentDocType === 'passport') {
-      // 免許証とマイナンバーのフィールドを登録解除
-      form.unregister('licenseNumber')
-      form.unregister('myNumber')
-      form.unregister('expirationDate')
-    } else if (currentDocType === 'my_number') {
-      // 免許証とパスポートのフィールドを登録解除
-      form.unregister('licenseNumber')
-      form.unregister('passportNumber')
-    }
-  }, [documentType, form])
+  // 書類タイプ変更時の処理
+  const { handleDocumentTypeChange } = useDocumentTypeChange({
+    form,
+    draft,
+    sessionId,
+    setImageKeys,
+  })
 
-  const onNext = async (data: DocumentSchema) => {
-    if (!sessionId) return
-    setIsSaving(true)
+  // 画像削除処理
+  const { handleImageDelete } = useImageDelete({
+    form,
+    draft,
+    sessionId,
+    setImageKeys,
+  })
 
-    // 1. 既存データと今回の入力をマージ (まだゴミが含まれる可能性がある)
-    const dirtyMergedData = {
-      ...draft,
-      ...data,
-    }
-
-    // 2. 不要なフィールド（例: 免許証を選んだのに残っているパスポート番号など）を除去
-    const cleanData = sanitizeRegisterData(dirtyMergedData)
-
-    await encryptRegisterData(cleanData)
-      .then((encryptedData) =>
-        getDb().registerData.put({
-          id: DRAFT_ID,
-          sessionId,
-          ...encryptedData,
-          updatedAt: new Date(),
-        } as RegisterDraft)
-      )
-      .then(() => router.push('/register/step3-confirm'))
-      .catch((error) => console.error('Failed to save:', error))
-      .finally(() => setIsSaving(false))
-  }
+  // フォームデータの保存と画面遷移
+  const { isSaving, saveAndNavigate } = useRegisterFormSave<DocumentSchema>({
+    nextRoute: '/register/step3-confirm',
+    draft,
+    sessionId,
+    preProcess: sanitizeRegisterData, // 不要なフィールドを除去
+  })
 
   const onBack = () => {
     router.push('/register/step1-basic')
@@ -152,7 +113,7 @@ export default function Step2DocumentsPage() {
 
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onNext)} className='space-y-6'>
+          <form onSubmit={form.handleSubmit(saveAndNavigate)} className='space-y-6'>
             {/* 書類タイプ選択 */}
             <FormField
               control={form.control}
@@ -161,60 +122,12 @@ export default function Step2DocumentsPage() {
                 <FormItem>
                   <FormLabel>提出する書類</FormLabel>
                   <Select
-                    onValueChange={(value) => {
-                      // 書類タイプを変更（同期的にUIを更新）
-                      field.onChange(value)
-
-                      // 画像をクリア（再レンダリングをトリガー）
-                      form.setValue('frontImage', undefined as unknown as File, {
-                        shouldValidate: false,
-                        shouldDirty: true,
-                        shouldTouch: true,
-                      })
-                      form.setValue('backImage', undefined as unknown as File, {
-                        shouldValidate: false,
-                        shouldDirty: true,
-                        shouldTouch: true,
-                      })
-
-                      // keyを更新してコンポーネントを強制的に再マウント
-                      setImageKeys((prev) => ({
-                        frontImage: prev.frontImage + 1,
-                        backImage: prev.backImage + 1,
-                      }))
-
-                      // DBも更新して、画像削除を永続化（非同期で実行）
-                      if (sessionId && draft) {
-                        const persistDocumentTypeChange = async (
-                          newDocType: DocumentSchema['documentType']
-                        ) => {
-                          const currentValues = form.getValues()
-                          const updatedData = {
-                            ...draft,
-                            ...currentValues,
-                            documentType: newDocType,
-                            frontImage: undefined,
-                            backImage: undefined,
-                          }
-                          const cleanData = sanitizeRegisterData(updatedData)
-
-                          await encryptRegisterData(cleanData)
-                            .then((encryptedData) =>
-                              getDb().registerData.put({
-                                id: DRAFT_ID,
-                                sessionId,
-                                ...encryptedData,
-                                updatedAt: new Date(),
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                              } as any)
-                            )
-                            .catch((error) =>
-                              console.error('Failed to update DB after documentType change:', error)
-                            )
-                        }
-                        void persistDocumentTypeChange(value as DocumentSchema['documentType'])
-                      }
-                    }}
+                    onValueChange={(value) =>
+                      handleDocumentTypeChange(
+                        value as DocumentSchema['documentType'],
+                        field.onChange
+                      )
+                    }
                     value={field.value}
                   >
                     <FormControl>
@@ -261,18 +174,14 @@ export default function Step2DocumentsPage() {
                     form={form}
                     name='frontImage'
                     label='表面画像'
-                    sessionId={sessionId}
-                    draft={draft}
-                    setImageKeys={setImageKeys}
+                    handleImageDelete={handleImageDelete}
                   />
                   <ImageUploadField
                     key={`${documentType}-backImage-${imageKeys.backImage}`}
                     form={form}
                     name='backImage'
                     label='裏面画像'
-                    sessionId={sessionId}
-                    draft={draft}
-                    setImageKeys={setImageKeys}
+                    handleImageDelete={handleImageDelete}
                   />
                 </div>
               )}
@@ -303,9 +212,7 @@ export default function Step2DocumentsPage() {
                     form={form}
                     name='frontImage'
                     label='顔写真ページ'
-                    sessionId={sessionId}
-                    draft={draft}
-                    setImageKeys={setImageKeys}
+                    handleImageDelete={handleImageDelete}
                   />
                 </div>
               )}
@@ -360,18 +267,14 @@ export default function Step2DocumentsPage() {
                     form={form}
                     name='frontImage'
                     label='表面 (顔写真)'
-                    sessionId={sessionId}
-                    draft={draft}
-                    setImageKeys={setImageKeys}
+                    handleImageDelete={handleImageDelete}
                   />
                   <ImageUploadField
                     key={`${documentType}-backImage-${imageKeys.backImage}`}
                     form={form}
                     name='backImage'
                     label='裏面 (個人番号)'
-                    sessionId={sessionId}
-                    draft={draft}
-                    setImageKeys={setImageKeys}
+                    handleImageDelete={handleImageDelete}
                   />
                 </div>
               )}
@@ -407,17 +310,12 @@ function ImageUploadField({
   form,
   name,
   label,
-  sessionId,
-  draft,
-  setImageKeys,
+  handleImageDelete,
 }: {
   form: UseFormReturn<DocumentSchema>
   name: 'frontImage' | 'backImage'
   label: string
-  sessionId: string | null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  draft: any
-  setImageKeys: React.Dispatch<React.SetStateAction<{ frontImage: number; backImage: number }>>
+  handleImageDelete: (fieldName: 'frontImage' | 'backImage') => Promise<void>
 }) {
   return (
     <FormField
@@ -473,40 +371,7 @@ function ImageUploadField({
                       variant='ghost'
                       size='icon'
                       className='text-slate-400 hover:text-red-500'
-                      onClick={async () => {
-                        if (!sessionId || !draft) return
-
-                        // keyを更新してコンポーネントを再マウント（UIを確実に更新）
-                        setImageKeys((prev) => ({ ...prev, [name]: prev[name] + 1 }))
-
-                        // DBを更新
-                        const currentValues = form.getValues()
-                        form.reset({
-                          ...currentValues,
-                          [name]: undefined,
-                        })
-                        const updatedData = {
-                          ...draft, // 既存のデータ（step1の情報など）を保持
-                          ...currentValues,
-                          [name]: undefined,
-                        }
-                        const cleanData = sanitizeRegisterData(updatedData)
-
-                        await encryptRegisterData(cleanData)
-                          .then((encryptedData) =>
-                            getDb().registerData.put({
-                              id: DRAFT_ID,
-                              sessionId,
-                              ...encryptedData,
-                              updatedAt: new Date(),
-                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            } as any)
-                          )
-                          .then(() => console.log('Image deleted and DB updated successfully'))
-                          .catch((error) =>
-                            console.error('Failed to update DB after image deletion:', error)
-                          )
-                      }}
+                      onClick={() => handleImageDelete(name)}
                     >
                       <X className='w-4 h-4' />
                     </Button>
