@@ -27,4 +27,8 @@ jobs:
         run: bun ci
 
       - name: Build and Deploy to Cloudflare
-        run: bun run deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: bun run deploy
