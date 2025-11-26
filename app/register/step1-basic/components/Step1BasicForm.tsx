@@ -59,7 +59,7 @@ export function Step1BasicForm({ form, isSaving, onSubmit }: Step1BasicFormProps
             />
 
             {/* メールアドレス & 電話番号 (2カラムレイアウト) */}
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-6 items-start'>
               <FormField
                 control={form.control}
                 name='email'
