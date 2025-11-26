@@ -10,7 +10,7 @@ export default defineConfig({
     'process.env': {},
   },
   optimizeDeps: {
-    include: ['./app/**/*.tsx'],
+    entries: ['app/**/*.tsx'],
   },
   test: {
     include: ['**/*.browser.test.tsx'],
