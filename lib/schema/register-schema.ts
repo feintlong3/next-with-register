@@ -57,9 +57,30 @@ const passportSchema = z.object({
 const myNumberSchema = z.object({
   documentType: z.literal('my_number'),
   myNumber: z.string().regex(/^\d{12}$/, 'マイナンバーは12桁の半角数字で入力してください'),
-  expirationDate: z.coerce.date().refine((date) => date > new Date(), {
-    message: '有効期限が切れているカードは使用できません',
-  }),
+  expirationDate: z
+    .custom<Date>((val) => {
+      // undefinedまたはnullの場合はエラー
+      if (val === undefined || val === null) {
+        return false
+      }
+      // Dateオブジェクトの場合
+      if (val instanceof Date) {
+        return !isNaN(val.getTime())
+      }
+      // 文字列の場合は変換を試みる
+      if (typeof val === 'string' && val.length > 0) {
+        const date = new Date(val)
+        return !isNaN(date.getTime())
+      }
+      return false
+    }, '有効な日付を入力してください')
+    .transform((val) => {
+      if (val instanceof Date) return val
+      return new Date(val as string)
+    })
+    .refine((date) => date > new Date(), {
+      message: '有効期限が切れているカードは使用できません',
+    }),
   frontImage: imageFileSchema,
   backImage: imageFileSchema, // マイナンバーは裏面必須
 })
