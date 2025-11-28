@@ -1,16 +1,23 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 import { LandingPageContent } from '@/app/components/LandingPageContent'
 import { getDb } from '@/lib/db'
 import { DRAFT_ID, useRegisterDraft } from '@/lib/hooks/useRegisterDraft'
+import { setupAutoCleanup } from '@/lib/utils/db-cleanup'
 
 export default function LandingPage() {
   const router = useRouter()
 
   // カスタムフックを使ってIndexedDBの状態を監視
   const { draft, isLoading } = useRegisterDraft()
+
+  // アプリケーション起動時に古いドラフトデータを自動削除
+  useEffect(() => {
+    setupAutoCleanup()
+  }, [])
 
   // ドラフトが存在するかどうかの判定
   const hasDraft = !!draft

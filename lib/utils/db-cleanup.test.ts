@@ -18,7 +18,7 @@ describe('setupAutoCleanup', () => {
 
     // getDb のモックを設定
     const { getDb } = await import('@/lib/db')
-    vi.mocked(getDb).mockReturnValue({
+    ;(getDb as ReturnType<typeof vi.fn>).mockReturnValue({
       registerData: {
         get: mockGet,
         delete: mockDelete,
@@ -35,7 +35,7 @@ describe('setupAutoCleanup', () => {
     expect(mockDelete).not.toHaveBeenCalled()
   })
 
-  test('ドラフトが24時間以内の場合、削除しない', async () => {
+  test('ドラフトが6時間以内の場合、削除しない', async () => {
     // 1時間前に更新されたドラフト
     const recentDraft = {
       id: 'register-draft',
@@ -49,11 +49,11 @@ describe('setupAutoCleanup', () => {
     expect(mockDelete).not.toHaveBeenCalled()
   })
 
-  test('ドラフトがちょうど24時間の場合、削除しない', async () => {
-    // ちょうど24時間前に更新されたドラフト
+  test('ドラフトがちょうど6時間の場合、削除しない', async () => {
+    // ちょうど6時間前に更新されたドラフト
     const exactDraft = {
       id: 'register-draft',
-      updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
     }
     mockGet.mockResolvedValue(exactDraft)
 
@@ -63,11 +63,11 @@ describe('setupAutoCleanup', () => {
     expect(mockDelete).not.toHaveBeenCalled()
   })
 
-  test('ドラフトが24時間を超えている場合、削除する', async () => {
-    // 25時間前に更新されたドラフト
+  test('ドラフトが6時間を超えている場合、削除する', async () => {
+    // 7時間前に更新されたドラフト
     const oldDraft = {
       id: 'register-draft',
-      updatedAt: new Date(Date.now() - 25 * 60 * 60 * 1000), // 25時間前
+      updatedAt: new Date(Date.now() - 7 * 60 * 60 * 1000), // 7時間前
     }
     mockGet.mockResolvedValue(oldDraft)
 
@@ -82,11 +82,11 @@ describe('setupAutoCleanup', () => {
     consoleLogSpy.mockRestore()
   })
 
-  test('ドラフトが48時間以上経過している場合も削除する', async () => {
-    // 2日前に更新されたドラフト
+  test('ドラフトが12時間以上経過している場合も削除する', async () => {
+    // 12時間前に更新されたドラフト
     const veryOldDraft = {
       id: 'register-draft',
-      updatedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
+      updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
     }
     mockGet.mockResolvedValue(veryOldDraft)
 
