@@ -25,7 +25,7 @@
 
 - **UX機能**
   - ドラフト自動保存（IndexedDB）
-  - 24時間後の自動クリーンアップ
+  - 6時間後の自動クリーンアップ
   - レスポンシブデザイン
   - リアルタイムバリデーション
 
@@ -53,7 +53,6 @@
 - **Vitest**
   - Browser Mode: ブラウザ環境でのコンポーネントテスト
   - JSDOM: React Hook Formを使用したコンポーネントのテスト
-- **Playwright** (ブラウザ自動化)
 - **ESLint** + **Prettier** (コード品質)
 - **TypeScript** (型安全性)
 
@@ -61,12 +60,12 @@
 
 ```
 next-with-register/
-├── app/                          # Next.js App Router
+├── app/                         # Next.js App Router
+│   ├── page.tsx                 # トップページ
 │   ├── register/
 │   │   ├── step1-basic/         # Step 1: 基本情報入力
 │   │   ├── step2-documents/     # Step 2: 書類アップロード
 │   │   └── step3-confirm/       # Step 3: 確認画面
-│   └── api/                     # API Routes
 ├── lib/
 │   ├── db.ts                    # Dexie.js データベース定義
 │   ├── hooks/                   # カスタムフック
@@ -116,7 +115,6 @@ bun run format
 
 ### テストカバレッジ
 
-- **181テスト** (JSDOMテスト: 135 / ブラウザテスト: 46)
 - コンポーネントテスト
 - カスタムフックテスト
 - ユーティリティ関数テスト
@@ -158,7 +156,7 @@ export async function encryptString(text: string, sessionId: string): Promise<st
 ```typescript
 export const db = new Dexie('RegisterDatabase') as RegisterDatabase
 db.version(1).stores({
-  registerData: '&id, sessionId, updatedAt',
+  registerData: 'id, sessionId, updatedAt',
 })
 ```
 
