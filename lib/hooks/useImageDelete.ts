@@ -11,7 +11,7 @@ interface UseImageDeleteOptions {
   form: UseFormReturn<DocumentSchema>
   draft: Record<string, unknown> | null | undefined
   sessionId: string | null
-  setImageKeys: React.Dispatch<React.SetStateAction<{ frontImage: number; backImage: number }>>
+  incrementKey: (fieldName: 'frontImage' | 'backImage') => void
 }
 
 /**
@@ -20,7 +20,7 @@ interface UseImageDeleteOptions {
  * - フォームのリセット
  * - DBへの永続化
  */
-export function useImageDelete({ form, draft, sessionId, setImageKeys }: UseImageDeleteOptions) {
+export function useImageDelete({ form, draft, sessionId, incrementKey }: UseImageDeleteOptions) {
   /**
    * 画像削除ハンドラー
    */
@@ -28,7 +28,7 @@ export function useImageDelete({ form, draft, sessionId, setImageKeys }: UseImag
     if (!sessionId || !draft) return
 
     // keyを更新してコンポーネントを再マウント（UIを確実に更新）
-    setImageKeys((prev) => ({ ...prev, [fieldName]: prev[fieldName] + 1 }))
+    incrementKey(fieldName)
 
     // DBを更新
     const currentValues = form.getValues()

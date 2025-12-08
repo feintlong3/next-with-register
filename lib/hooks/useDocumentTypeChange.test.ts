@@ -33,7 +33,7 @@ describe('useDocumentTypeChange', () => {
   })
 
   test('handleDocumentTypeChangeを呼ぶと、documentTypeが変更される', () => {
-    const setImageKeysMock = vi.fn()
+    const resetKeysMock = vi.fn()
     const fieldOnChangeMock = vi.fn()
 
     const { result } = renderHook(() => {
@@ -50,7 +50,7 @@ describe('useDocumentTypeChange', () => {
         form,
         draft: {},
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        resetKeys: resetKeysMock,
       })
     })
 
@@ -61,7 +61,7 @@ describe('useDocumentTypeChange', () => {
   })
 
   test('documentType変更時に画像フィールドがクリアされる', () => {
-    const setImageKeysMock = vi.fn()
+    const resetKeysMock = vi.fn()
     const fieldOnChangeMock = vi.fn()
 
     const { result } = renderHook(() => {
@@ -81,7 +81,7 @@ describe('useDocumentTypeChange', () => {
           form,
           draft: {},
           sessionId: 'test-session-123',
-          setImageKeys: setImageKeysMock,
+          resetKeys: resetKeysMock,
         }),
         setValueSpy,
       }
@@ -102,11 +102,8 @@ describe('useDocumentTypeChange', () => {
     )
   })
 
-  test('documentType変更時にimageKeysが更新される', () => {
-    let capturedUpdater: any = null
-    const setImageKeysMock = vi.fn((updater) => {
-      capturedUpdater = updater
-    })
+  test('documentType変更時にresetKeysが呼ばれる', () => {
+    const resetKeysMock = vi.fn()
     const fieldOnChangeMock = vi.fn()
 
     const { result } = renderHook(() => {
@@ -120,24 +117,17 @@ describe('useDocumentTypeChange', () => {
         form,
         draft: {},
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        resetKeys: resetKeysMock,
       })
     })
 
     result.current.handleDocumentTypeChange('passport', fieldOnChangeMock)
 
-    expect(setImageKeysMock).toHaveBeenCalled()
-
-    // updater関数をテスト
-    const prevState = { frontImage: 1, backImage: 2 }
-    const newState = capturedUpdater(prevState)
-
-    expect(newState.frontImage).toBe(2) // インクリメント
-    expect(newState.backImage).toBe(3) // インクリメント
+    expect(resetKeysMock).toHaveBeenCalled()
   })
 
   test('sessionIdとdraftが存在する場合、DBが更新される', async () => {
-    const setImageKeysMock = vi.fn()
+    const resetKeysMock = vi.fn()
     const fieldOnChangeMock = vi.fn()
     const draft = {
       documentType: 'drivers_license',
@@ -153,7 +143,7 @@ describe('useDocumentTypeChange', () => {
         form,
         draft,
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        resetKeys: resetKeysMock,
       })
     })
 
@@ -167,7 +157,7 @@ describe('useDocumentTypeChange', () => {
   })
 
   test('sessionIdがnullの場合、DBは更新されない', async () => {
-    const setImageKeysMock = vi.fn()
+    const resetKeysMock = vi.fn()
     const fieldOnChangeMock = vi.fn()
 
     const { result } = renderHook(() => {
@@ -181,7 +171,7 @@ describe('useDocumentTypeChange', () => {
         form,
         draft: {},
         sessionId: null,
-        setImageKeys: setImageKeysMock,
+        resetKeys: resetKeysMock,
       })
     })
 
@@ -194,7 +184,7 @@ describe('useDocumentTypeChange', () => {
   })
 
   test('draftがnullの場合、DBは更新されない', async () => {
-    const setImageKeysMock = vi.fn()
+    const resetKeysMock = vi.fn()
     const fieldOnChangeMock = vi.fn()
 
     const { result } = renderHook(() => {
@@ -208,7 +198,7 @@ describe('useDocumentTypeChange', () => {
         form,
         draft: null,
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        resetKeys: resetKeysMock,
       })
     })
 
@@ -223,7 +213,7 @@ describe('useDocumentTypeChange', () => {
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(encryptionHelper.encryptRegisterData).mockRejectedValueOnce(new Error('暗号化エラー'))
 
-    const setImageKeysMock = vi.fn()
+    const resetKeysMock = vi.fn()
     const fieldOnChangeMock = vi.fn()
 
     const { result } = renderHook(() => {
@@ -237,7 +227,7 @@ describe('useDocumentTypeChange', () => {
         form,
         draft: {},
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        resetKeys: resetKeysMock,
       })
     })
 
@@ -245,7 +235,7 @@ describe('useDocumentTypeChange', () => {
 
     // UIの更新は完了している
     expect(fieldOnChangeMock).toHaveBeenCalledWith('passport')
-    expect(setImageKeysMock).toHaveBeenCalled()
+    expect(resetKeysMock).toHaveBeenCalled()
 
     await waitFor(() => {
       expect(consoleErrorMock).toHaveBeenCalledWith(

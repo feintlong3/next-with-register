@@ -36,7 +36,7 @@ describe('useImageDelete', () => {
   })
 
   test('sessionIdがnullの場合、削除処理は実行されない', async () => {
-    const setImageKeysMock = vi.fn()
+    const incrementKeyMock = vi.fn()
 
     const { result } = renderHook(() => {
       const form = useForm<DocumentSchema>()
@@ -44,18 +44,18 @@ describe('useImageDelete', () => {
         form,
         draft: {},
         sessionId: null,
-        setImageKeys: setImageKeysMock,
+        incrementKey: incrementKeyMock,
       })
     })
 
     await result.current.handleImageDelete('frontImage')
 
-    expect(setImageKeysMock).not.toHaveBeenCalled()
+    expect(incrementKeyMock).not.toHaveBeenCalled()
     expect(db.getDb).not.toHaveBeenCalled()
   })
 
   test('draftがnullの場合、削除処理は実行されない', async () => {
-    const setImageKeysMock = vi.fn()
+    const incrementKeyMock = vi.fn()
 
     const { result } = renderHook(() => {
       const form = useForm<DocumentSchema>()
@@ -63,18 +63,18 @@ describe('useImageDelete', () => {
         form,
         draft: null,
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        incrementKey: incrementKeyMock,
       })
     })
 
     await result.current.handleImageDelete('frontImage')
 
-    expect(setImageKeysMock).not.toHaveBeenCalled()
+    expect(incrementKeyMock).not.toHaveBeenCalled()
     expect(db.getDb).not.toHaveBeenCalled()
   })
 
   test('frontImageを削除できる', async () => {
-    const setImageKeysMock = vi.fn()
+    const incrementKeyMock = vi.fn()
     const draft = {
       documentType: 'drivers_license',
       licenseNumber: '123456789012',
@@ -90,7 +90,7 @@ describe('useImageDelete', () => {
         form,
         draft,
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        incrementKey: incrementKeyMock,
       })
     })
 
@@ -98,7 +98,7 @@ describe('useImageDelete', () => {
 
     await waitFor(() => {
       // imageKeysが更新される
-      expect(setImageKeysMock).toHaveBeenCalledWith(expect.any(Function))
+      expect(incrementKeyMock).toHaveBeenCalledWith('frontImage')
 
       // sanitizeが呼ばれる
       expect(sanitizeRegister.sanitizeRegisterData).toHaveBeenCalled()
@@ -114,7 +114,7 @@ describe('useImageDelete', () => {
   })
 
   test('backImageを削除できる', async () => {
-    const setImageKeysMock = vi.fn()
+    const incrementKeyMock = vi.fn()
     const draft = {
       documentType: 'drivers_license',
       licenseNumber: '123456789012',
@@ -130,23 +130,20 @@ describe('useImageDelete', () => {
         form,
         draft,
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        incrementKey: incrementKeyMock,
       })
     })
 
     await result.current.handleImageDelete('backImage')
 
     await waitFor(() => {
-      expect(setImageKeysMock).toHaveBeenCalledWith(expect.any(Function))
+      expect(incrementKeyMock).toHaveBeenCalledWith('backImage')
       expect(db.getDb).toHaveBeenCalled()
     })
   })
 
-  test('setImageKeysが正しく呼ばれ、指定したフィールドのkeyのみインクリメントされる', async () => {
-    let capturedUpdater: any = null
-    const setImageKeysMock = vi.fn((updater) => {
-      capturedUpdater = updater
-    })
+  test('incrementKeyが正しいフィールド名で呼ばれる', async () => {
+    const incrementKeyMock = vi.fn()
 
     const draft = {
       documentType: 'drivers_license',
@@ -161,29 +158,22 @@ describe('useImageDelete', () => {
         form,
         draft,
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        incrementKey: incrementKeyMock,
       })
     })
 
     await result.current.handleImageDelete('frontImage')
 
     await waitFor(() => {
-      expect(setImageKeysMock).toHaveBeenCalled()
+      expect(incrementKeyMock).toHaveBeenCalledWith('frontImage')
     })
-
-    // updater関数をテスト
-    const prevState = { frontImage: 1, backImage: 2 }
-    const newState = capturedUpdater(prevState)
-
-    expect(newState.frontImage).toBe(2) // インクリメント
-    expect(newState.backImage).toBe(2) // 変更なし
   })
 
   test('エラーが発生した場合、エラーログが出力される', async () => {
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(encryptionHelper.encryptRegisterData).mockRejectedValueOnce(new Error('暗号化エラー'))
 
-    const setImageKeysMock = vi.fn()
+    const incrementKeyMock = vi.fn()
     const draft = {
       documentType: 'drivers_license',
       frontImage: new File([], 'front.jpg'),
@@ -197,7 +187,7 @@ describe('useImageDelete', () => {
         form,
         draft,
         sessionId: 'test-session-123',
-        setImageKeys: setImageKeysMock,
+        incrementKey: incrementKeyMock,
       })
     })
 

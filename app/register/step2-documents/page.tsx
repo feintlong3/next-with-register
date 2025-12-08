@@ -3,7 +3,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, CreditCard, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 import { type Resolver, useForm } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
@@ -29,6 +28,7 @@ import { useDocumentFormDraftSync } from '@/lib/hooks/useDocumentFormDraftSync'
 import { useDocumentTypeChange } from '@/lib/hooks/useDocumentTypeChange'
 import { useDocumentTypeFieldCleanup } from '@/lib/hooks/useDocumentTypeFieldCleanup'
 import { useImageDelete } from '@/lib/hooks/useImageDelete'
+import { useImageKeys } from '@/lib/hooks/useImageKeys'
 import { useRegisterDraft } from '@/lib/hooks/useRegisterDraft'
 import { useRegisterFormSave } from '@/lib/hooks/useRegisterFormSave'
 import { type DocumentSchema, documentSchema } from '@/lib/schema/register-schema'
@@ -38,7 +38,7 @@ import { ImageUploadField } from './components/ImageUploadField'
 
 export default function Step2DocumentsPage() {
   const router = useRouter()
-  const [imageKeys, setImageKeys] = useState({ frontImage: 0, backImage: 0 })
+  const { imageKeys, incrementKey, resetKeys } = useImageKeys()
   const { draft, sessionId, isLoading } = useRegisterDraft()
 
   const form = useForm<DocumentSchema>({
@@ -71,7 +71,7 @@ export default function Step2DocumentsPage() {
     form,
     draft,
     sessionId,
-    setImageKeys,
+    resetKeys,
   })
 
   // 画像削除処理
@@ -79,7 +79,7 @@ export default function Step2DocumentsPage() {
     form,
     draft,
     sessionId,
-    setImageKeys,
+    incrementKey,
   })
 
   // フォームデータの保存と画面遷移

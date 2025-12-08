@@ -11,7 +11,7 @@ interface UseDocumentTypeChangeOptions {
   form: UseFormReturn<DocumentSchema>
   draft: Record<string, unknown> | null | undefined
   sessionId: string | null
-  setImageKeys: React.Dispatch<React.SetStateAction<{ frontImage: number; backImage: number }>>
+  resetKeys: () => void
 }
 
 /**
@@ -24,7 +24,7 @@ export function useDocumentTypeChange({
   form,
   draft,
   sessionId,
-  setImageKeys,
+  resetKeys,
 }: UseDocumentTypeChangeOptions) {
   /**
    * 書類タイプ変更ハンドラー
@@ -49,10 +49,7 @@ export function useDocumentTypeChange({
     })
 
     // keyを更新してコンポーネントを強制的に再マウント
-    setImageKeys((prev) => ({
-      frontImage: prev.frontImage + 1,
-      backImage: prev.backImage + 1,
-    }))
+    resetKeys()
 
     // DBも更新して、画像削除を永続化（非同期で実行）
     if (sessionId && draft) {
