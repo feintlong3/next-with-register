@@ -10,13 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import Input from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -34,7 +32,7 @@ import { useRegisterFormSave } from '@/lib/hooks/useRegisterFormSave'
 import { type DocumentSchema, documentSchema } from '@/lib/schema/register-schema'
 import { sanitizeRegisterData } from '@/lib/utils/sanitize-register'
 
-import { ImageUploadField } from './components/ImageUploadField'
+import { DocumentFormRenderer } from './components/DocumentForm'
 
 export default function Step2DocumentsPage() {
   const router = useRouter()
@@ -148,138 +146,13 @@ export default function Step2DocumentsPage() {
               )}
             />
 
-            <div className='p-4 border rounded-lg bg-slate-50/50 space-y-4'>
-              {/* ▼▼▼ 運転免許証 ▼▼▼ */}
-              {documentType === 'drivers_license' && (
-                <div className='animate-in fade-in slide-in-from-top-2 space-y-4'>
-                  <FormField
-                    control={form.control}
-                    name='licenseNumber'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>免許証番号 (12桁)</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder='123456789012'
-                            className='font-mono'
-                            maxLength={12}
-                          />
-                        </FormControl>
-                        <FormDescription>ハイフンなしで入力してください</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <ImageUploadField
-                    key={`${documentType}-frontImage-${imageKeys.frontImage}`}
-                    form={form}
-                    name='frontImage'
-                    label='表面画像'
-                    handleImageDelete={handleImageDelete}
-                  />
-                  <ImageUploadField
-                    key={`${documentType}-backImage-${imageKeys.backImage}`}
-                    form={form}
-                    name='backImage'
-                    label='裏面画像'
-                    handleImageDelete={handleImageDelete}
-                  />
-                </div>
-              )}
-
-              {/* ▼▼▼ パスポート ▼▼▼ */}
-              {documentType === 'passport' && (
-                <div className='animate-in fade-in slide-in-from-top-2 space-y-4'>
-                  <FormField
-                    control={form.control}
-                    name='passportNumber'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>旅券番号</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder='TK1234567'
-                            className='font-mono uppercase'
-                            maxLength={9}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <ImageUploadField
-                    key={`${documentType}-frontImage-${imageKeys.frontImage}`}
-                    form={form}
-                    name='frontImage'
-                    label='顔写真ページ'
-                    handleImageDelete={handleImageDelete}
-                  />
-                </div>
-              )}
-
-              {/* ▼▼▼ マイナンバーカード ▼▼▼ */}
-              {documentType === 'my_number' && (
-                <div className='animate-in fade-in slide-in-from-top-2 space-y-4'>
-                  <FormField
-                    control={form.control}
-                    name='myNumber'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>個人番号 (12桁)</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder='123456789012'
-                            className='font-mono'
-                            maxLength={12}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name='expirationDate'
-                    render={({ field }) => {
-                      const { onChange, value, ...rest } = field
-                      return (
-                        <FormItem>
-                          <FormLabel>有効期限</FormLabel>
-                          <FormControl>
-                            <Input
-                              type='date'
-                              {...rest}
-                              value={value ? new Date(value).toISOString().split('T')[0] : ''}
-                              onChange={(e) => {
-                                const v = (e.target as HTMLInputElement).value
-                                onChange(v ? new Date(v) : undefined)
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )
-                    }}
-                  />
-                  <ImageUploadField
-                    key={`${documentType}-frontImage-${imageKeys.frontImage}`}
-                    form={form}
-                    name='frontImage'
-                    label='表面 (顔写真)'
-                    handleImageDelete={handleImageDelete}
-                  />
-                  <ImageUploadField
-                    key={`${documentType}-backImage-${imageKeys.backImage}`}
-                    form={form}
-                    name='backImage'
-                    label='裏面 (個人番号)'
-                    handleImageDelete={handleImageDelete}
-                  />
-                </div>
-              )}
+            <div className='p-4 border rounded-lg bg-slate-50/50'>
+              <DocumentFormRenderer
+                documentType={documentType}
+                form={form}
+                imageKeys={imageKeys}
+                onImageDelete={handleImageDelete}
+              />
             </div>
 
             {/* ナビゲーションボタン */}
