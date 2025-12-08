@@ -5,10 +5,8 @@ import { deleteDb } from '@/lib/db'
 interface UseFormSubmitOptions {
   /** 送信成功時のコールバック */
   onSuccess: () => void
-  /** 成功時のメッセージ */
-  successMessage?: string
-  /** エラー時のメッセージ */
-  errorMessage?: string
+  /** エラー時のコールバック */
+  onError?: (error: unknown) => void
   /** 送信前の擬似的な待機時間（ミリ秒） */
   simulatedDelay?: number
 }
@@ -19,12 +17,7 @@ interface UseFormSubmitOptions {
  * - DB削除とクリーンアップ
  * - 成功/エラーハンドリング
  */
-export function useFormSubmit({
-  onSuccess,
-  successMessage = '送信が完了しました',
-  errorMessage = '送信に失敗しました',
-  simulatedDelay = 800,
-}: UseFormSubmitOptions) {
+export function useFormSubmit({ onSuccess, onError, simulatedDelay = 800 }: UseFormSubmitOptions) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   /**
@@ -39,22 +32,16 @@ export function useFormSubmit({
     console.log('Submitting Data:', data)
 
     // 擬似的な待機時間
-    await new Promise((resolve) => setTimeout(resolve, simulatedDelay))
-      .then(() => deleteDb()) // データベース全体を削除してクリーンアップ
-      .then(() => {
-        // 完了通知
-        if (successMessage) {
-          alert(successMessage)
-        }
-        onSuccess()
-      })
-      .catch((error) => {
-        console.error('Submission failed:', error)
-        if (errorMessage) {
-          alert(errorMessage)
-        }
-      })
-      .finally(() => setIsSubmitting(false))
+    try {
+      await new Promise((resolve) => setTimeout(resolve, simulatedDelay))
+      await deleteDb() // データベース全体を削除してクリーンアップ
+      onSuccess()
+    } catch (error) {
+      console.error('Submission failed:', error)
+      onError?.(error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return {
