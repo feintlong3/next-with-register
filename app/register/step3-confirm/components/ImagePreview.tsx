@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 
 interface ImagePreviewProps {
   file: File | Blob
@@ -11,8 +11,8 @@ interface ImagePreviewProps {
  * - コンポーネントのアンマウント時に URL.revokeObjectURL を呼び出す
  */
 export function ImagePreview({ file, label }: ImagePreviewProps) {
-  // Object URL を作成（file が変更された時のみ再計算）
-  const objectUrl = useMemo(() => URL.createObjectURL(file), [file])
+  // Object URL を作成
+  const objectUrl = URL.createObjectURL(file)
 
   // クリーンアップ: コンポーネントアンマウント時または objectUrl 変更時に URL を解放
   useEffect(() => {

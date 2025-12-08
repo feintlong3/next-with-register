@@ -11,12 +11,10 @@ vi.mock('@/lib/db', () => ({
 }))
 
 describe('useFormSubmit', () => {
-  let alertMock: ReturnType<typeof vi.spyOn>
   let consoleLogMock: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     vi.clearAllMocks()
-    alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
     consoleLogMock = vi.spyOn(console, 'log').mockImplementation(() => {})
   })
 
@@ -47,7 +45,6 @@ describe('useFormSubmit', () => {
     await waitFor(() => {
       expect(consoleLogMock).toHaveBeenCalledWith('Submitting Data:', testData)
       expect(db.deleteDb).toHaveBeenCalled()
-      expect(alertMock).toHaveBeenCalledWith('送信が完了しました')
       expect(onSuccessMock).toHaveBeenCalled()
       expect(result.current.isSubmitting).toBe(false)
     })
@@ -110,32 +107,17 @@ describe('useFormSubmit', () => {
     expect(onSuccessMock).not.toHaveBeenCalled()
   })
 
-  test('カスタムメッセージが表示される', async () => {
-    const { result } = renderHook(() =>
-      useFormSubmit({
-        onSuccess: () => {},
-        successMessage: 'カスタム成功メッセージ',
-        simulatedDelay: 10,
-      })
-    )
-
-    await result.current.handleSubmit({ data: 'test' })
-
-    await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith('カスタム成功メッセージ')
-    })
-  })
-
-  test('エラーが発生した場合、エラーメッセージが表示される', async () => {
+  test('onErrorコールバックが呼ばれる', async () => {
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(db.deleteDb).mockRejectedValueOnce(new Error('DB削除エラー'))
 
     const onSuccessMock = vi.fn()
+    const onErrorMock = vi.fn()
 
     const { result } = renderHook(() =>
       useFormSubmit({
         onSuccess: onSuccessMock,
-        errorMessage: 'エラーが発生しました',
+        onError: onErrorMock,
         simulatedDelay: 10,
       })
     )
@@ -144,17 +126,21 @@ describe('useFormSubmit', () => {
 
     await waitFor(() => {
       expect(consoleErrorMock).toHaveBeenCalledWith('Submission failed:', expect.any(Error))
-      expect(alertMock).toHaveBeenCalledWith('エラーが発生しました')
+      expect(onErrorMock).toHaveBeenCalledWith(expect.any(Error))
       expect(onSuccessMock).not.toHaveBeenCalled()
       expect(result.current.isSubmitting).toBe(false)
     })
   })
 
-  test('successMessageが空文字列の場合、alertは表示されない', async () => {
+  test('onErrorが指定されていない場合もエラーハンドリングされる', async () => {
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(db.deleteDb).mockRejectedValueOnce(new Error('DB削除エラー'))
+
+    const onSuccessMock = vi.fn()
+
     const { result } = renderHook(() =>
       useFormSubmit({
-        onSuccess: () => {},
-        successMessage: '',
+        onSuccess: onSuccessMock,
         simulatedDelay: 10,
       })
     )
@@ -162,8 +148,9 @@ describe('useFormSubmit', () => {
     await result.current.handleSubmit({ data: 'test' })
 
     await waitFor(() => {
-      expect(db.deleteDb).toHaveBeenCalled()
-      expect(alertMock).not.toHaveBeenCalled()
+      expect(consoleErrorMock).toHaveBeenCalledWith('Submission failed:', expect.any(Error))
+      expect(onSuccessMock).not.toHaveBeenCalled()
+      expect(result.current.isSubmitting).toBe(false)
     })
   })
 })

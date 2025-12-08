@@ -15,9 +15,13 @@ export default function Step3ConfirmPage() {
 
   // フォーム送信処理
   const { isSubmitting, handleSubmit } = useFormSubmit({
-    onSuccess: () => router.push('/'),
-    successMessage: '申請を受け付けました！',
-    errorMessage: '送信に失敗しました。',
+    onSuccess: () => {
+      alert('申請を受け付けました！')
+      router.push('/')
+    },
+    onError: () => {
+      alert('送信に失敗しました。')
+    },
   })
 
   const onSubmit = () => handleSubmit(draft)
